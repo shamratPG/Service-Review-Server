@@ -23,7 +23,6 @@ function verifyJWT(req, res, next) {
         req.decoded = decoded;
         next()
     })
-    console.log()
 }
 
 app.use(cors());
@@ -41,12 +40,20 @@ async function run() {
     try {
         const serviceCollection = client.db('mrPhotographer').collection('photoServices');
         const reviewCollection = client.db('mrPhotographer').collection('reviews');
-
+        const blogCollection = client.db('mrPhotographer').collection('Blogs');
 
         app.post('/jwt', (req, res) => {
             const user = req.body;
             const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
             res.send({ token })
+        })
+
+        //Blogs Api 
+        app.get('/blogs', async (req, res) => {
+            const query = {}
+            const cursor = blogCollection.find(query);
+            const services = await cursor.toArray();
+            res.send(services);
         })
 
         // Service Api 
@@ -82,7 +89,9 @@ async function run() {
                     serviceId: req.query.serviceId
                 }
             }
-            const cursor = reviewCollection.find(query)
+            const cursor = reviewCollection.find(query).sort({ date: -1 })
+
+            // collection.find().sort({datefield: -1}, function(err, cursor){...});
             const reviews = await cursor.toArray();
             res.send(reviews);
         })
@@ -91,7 +100,6 @@ async function run() {
         app.get('/reviews/:email', verifyJWT, async (req, res) => {
             const decoded = req.decoded;
             const email = req.params.email;
-            console.log('order api', decoded)
 
             if (decoded?.email !== email) {
                 req?.status(403).send({ message: 'Unauthorized' })
@@ -126,7 +134,6 @@ async function run() {
         app.patch('/reviews/:id', async (req, res) => {
             const id = req.params.id;
             const updatedReview = req.body.updatedReview;
-            console.log(updatedReview);
             const query = { _id: ObjectId(id) }
             const updateReview = {
                 $set: {
