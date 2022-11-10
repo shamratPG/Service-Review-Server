@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const jwt = require('jsonwebtoken');
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const app = express();
 const port = process.env.PORT || 5000;
@@ -9,6 +10,21 @@ require('dotenv').config();
 const dbUser = process.env.DB_USER;
 const dbPass = process.env.DB_PASSWORD;
 
+function verifyJWT(req, res, next) {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+        return res?.status(401).send({ message: 'UnauthoriZed' })
+    }
+    const token = authHeader.split(' ')[1];
+    jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, function (error, decoded) {
+        if (error) {
+            return res?.status(403).send({ message: 'Forbidden Access' })
+        }
+        req.decoded = decoded;
+        next()
+    })
+    console.log()
+}
 
 app.use(cors());
 app.use(express.json());
@@ -25,6 +41,13 @@ async function run() {
     try {
         const serviceCollection = client.db('mrPhotographer').collection('photoServices');
         const reviewCollection = client.db('mrPhotographer').collection('reviews');
+
+
+        app.post('/jwt', (req, res) => {
+            const user = req.body;
+            const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: '1h' })
+            res.send({ token })
+        })
 
         // Service Api 
         app.get('/services', async (req, res) => {
@@ -43,7 +66,7 @@ async function run() {
             res.send(service);
         })
 
-        app.post('/services', async (req, res) => {
+        app.post('/services', verifyJWT, async (req, res) => {
             const service = req.body;
             const result = await serviceCollection.insertOne(service);
             res.send(result);
@@ -51,17 +74,29 @@ async function run() {
 
         // Review Api 
 
+        // Open Api 
         app.get('/reviews', async (req, res) => {
             let query = {};
             if (req.query.serviceId) {
                 query = {
                     serviceId: req.query.serviceId
                 }
-            } else if (req.query.email) {
-                query = {
-                    email: req.query.email
-                }
             }
+            const cursor = reviewCollection.find(query)
+            const reviews = await cursor.toArray();
+            res.send(reviews);
+        })
+
+        // JWT api 
+        app.get('/reviews/:email', verifyJWT, async (req, res) => {
+            const decoded = req.decoded;
+            const email = req.params.email;
+            console.log('order api', decoded)
+
+            if (decoded?.email !== email) {
+                req?.status(403).send({ message: 'Unauthorized' })
+            }
+            let query = { email: email };
             const cursor = reviewCollection.find(query)
             const reviews = await cursor.toArray();
             res.send(reviews);
