@@ -91,7 +91,6 @@ async function run() {
             }
             const cursor = reviewCollection.find(query).sort({ date: -1 })
 
-            // collection.find().sort({datefield: -1}, function(err, cursor){...});
             const reviews = await cursor.toArray();
             res.send(reviews);
         })
