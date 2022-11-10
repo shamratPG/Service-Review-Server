@@ -99,6 +99,7 @@ async function run() {
         app.get('/reviews/:email', verifyJWT, async (req, res) => {
             const decoded = req.decoded;
             const email = req.params.email;
+            console.log(decoded);
 
             if (decoded?.email !== email) {
                 req?.status(403).send({ message: 'Unauthorized' })
@@ -115,8 +116,10 @@ async function run() {
             res.send(result);
         })
 
-        app.get('/reviews/:id', async (req, res) => {
+        app.get('/reviews/:id', verifyJWT, async (req, res) => {
+            const decoded = req.decoded;
             const id = req.params.id;
+            console.log(decoded);
             const query = { _id: ObjectId(id) };
             const cursor = reviewCollection.find(query)
             const review = await cursor.toArray();
